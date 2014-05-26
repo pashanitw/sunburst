@@ -9,7 +9,7 @@ var app = angular.module('viz', [])
                 "<div class='container'>" +
                 "<div class='chart'>" +
                 "<span class='percentage'></span>" +
-                "<span class='text'></span>" +
+                "<span class='text' data-ng-bind='explanation'></span>" +
                 "</div>" +
                 "<div class='side-bar'>" +
                 "<input type='checkbox'>Legend</input>" +
@@ -17,6 +17,7 @@ var app = angular.module('viz', [])
                 "</div>" +
                 "</div>",
             link: function ($scope, element, attrs, controller) {
+                $scope.explanation="some text percentages"
                 var w = 700,
                     h = 700,
                     r = 350,
@@ -24,13 +25,18 @@ var app = angular.module('viz', [])
                 var b = {
                     w: 75, h: 30, s: 3, t: 10
                 };
-                colors={};
+                var leg={
+                    height:25,
+                    width:50,
+                    padding:5
+                    },
+                    maxLength = 0,
+                    colors = {};
                 var partition = d3.layout.partition()
                     .size([2 * Math.PI, r * r])
                     .value(function (d) {
                         return d.size;
                     });
-                debugger;
                 var svg = d3.select(element.find('.chart')[0])
                     .append('svg:svg')
                     .attr('height', h)
@@ -64,45 +70,53 @@ var app = angular.module('viz', [])
                     .style("stroke", "#fff")
                     .style('fill', function (d) {
                         var node= d.children ? d : d.parent;
+                        maxLength=Math.max(maxLength,node.name.length)
                         return colors[node.name]=colors[node.name]||color(node.name);
                     })
                     .on("mouseover", onFocus);
+                var leg={
+                    height:15,
+                    width:15,
+                    padding:23,
+                    radius:4
+                }
+                var entries=d3.entries(colors);
+                debugger;
+                var legendHeight=entries.length*(leg.padding);
                 var sideBar=d3.select(element.find('.side-bar')[0]).append("svg:svg")
-                    .attr({
-                        height:h,
-                        width:w
-                    })
-                    .style('overflow','auto');
+                    .attr('height',legendHeight);
                 var legend = sideBar.append("svg:g")
                     .selectAll('rect')
                     .data(d3.entries(colors));
                 legend.enter().append('rect')
-                    .attr('width',100)
-                    .attr('height',50)
-                    .attr('cx',5)
-                    .attr('cy',5)
+                    .attr('width',leg.height)
+                    .attr('height',leg.width)
+                    .attr('rx',leg.radius)
+                    .attr('ry',leg.radius)
                     .style('fill',function(d){
                         return d.value;
                     })
                     .attr('transform',function(d,i){
-                        return "translate(0,"+i*52+")";
+                        return "translate(0,"+i*leg.padding+")";
                     });
                 legend=sideBar.append("svg:g")
                     .selectAll('text')
                     .data(d3.entries(colors));
                 legend.enter().append("svg:text")
                    .attr({
-                       'x': 26,
-                       'y':25,
-                       'text-anchor':'middle'
+                       'x': 10,
+                       'y':12
                    })
                    .text(function(d){
                        return d.key;
                    })
                    .attr('transform',function(d,i){
                        console.log("key", d.key,i)
-                       return "translate(15,"+i*52+")";
-                   });
+                       return "translate(15,"+i*leg.padding+")";
+                   })
+                    .style('fill',function(d){
+                        return d.value;
+                    });
                 d3.select(element.find('#container')[0]).on("mouseleave",onBlur);
                 var totalLength = path.node().__data__.value;
                 initializeBreadCrumb();
@@ -113,12 +127,11 @@ var app = angular.module('viz', [])
                         .style("visibility", "");
                     var selectedNodes = getAncestors(d);
                     updateBreadCrumb(selectedNodes,percentageText)
-                    console.log("path is", svg.selectAll('path'));
                     svg.selectAll('path')
                         .style('opacity',0.3);
                     svg.selectAll('path')
                         .filter(function(node){
-                            return selectedNodes.indexOf(node)>=1;
+                            return selectedNodes.indexOf(node)>-1;
                         })
                         .style("opacity",1);
                 }
@@ -150,6 +163,7 @@ var app = angular.module('viz', [])
                 }
 
                 function updateBreadCrumb(nodeArray,percentageText) {
+                    b.w=maxLength*12;
                     var g = d3.select(element.find('.trail')[0])
                         .selectAll('g')
                         .data(nodeArray, function (d) {
@@ -174,6 +188,7 @@ var app = angular.module('viz', [])
                         .text(function (d) {
                             return d.name;
                         });
+
                     // Make the breadcrumb trail visible, if it's hidden.
                     d3.select("#trail")
                         .style("visibility", "");
@@ -196,7 +211,7 @@ var app = angular.module('viz', [])
                 function initializeBreadCrumb() {
                     var crumb = d3.select(element.find('.bread-crumb')[0])
                         .append("svg:svg")
-                        .attr('width', 500)
+                        .attr('width', '100%')
                         .attr('height', 50)
                         .attr('class', 'trail');
                     crumb.append('svg:text')

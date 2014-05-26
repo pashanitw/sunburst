@@ -1,15 +1,38 @@
+body {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  background-color: #fff;
+  height: 700px;
+  margin-top: 10px;
+}
+
 .container .side-bar{
     display: inline-block;
     width: 200px;
     margin-left: 100px;
+    height:500px;
+    overflow-y: auto;
+    font-family: 'Open Sans';
+    font-weight: 600;
 }
 .container .chart{
     display: inline-block;
     float: left;
 }
-.container .percentage{
+.container .percentage, .container .text{
     position: absolute;
     margin-left: 293px;
     margin-top: 252px;
     font-size: 45px;
+}
+.container .text{
+    position: absolute;
+    margin-left: 258px;
+    margin-top: 349px;
+    font-size: 19px;
+}
+
+.chart path {
+  stroke: #fff;
 }
