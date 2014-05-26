@@ -6,12 +6,14 @@ var app = angular.module('viz', [])
             replace: true,
             template: "<div class='sun-burst'>" +
                 "<div class='bread-crumb'></div>" +
+                "<div class='container'>" +
                 "<div class='chart'>" +
                 "<span class='percentage'></span>" +
                 "<span class='text'></span>" +
                 "</div>" +
                 "<div class='side-bar'>" +
-                "<input type='checkbox'/>" +
+                "<input type='checkbox'>Legend</input>" +
+                "</div>" +
                 "</div>" +
                 "</div>",
             link: function ($scope, element, attrs, controller) {
@@ -22,6 +24,7 @@ var app = angular.module('viz', [])
                 var b = {
                     w: 75, h: 30, s: 3, t: 10
                 };
+                colors={};
                 var partition = d3.layout.partition()
                     .size([2 * Math.PI, r * r])
                     .value(function (d) {
@@ -53,20 +56,64 @@ var app = angular.module('viz', [])
                     .data(nodes)
                     .enter()
                     .append('svg:path')
+                    .attr('display', function (d) {
+                        return d.depth ? null : 'none';
+                    })
                     .attr('d', arc)
                     .attr("fill-rule", "evenodd")
                     .style("stroke", "#fff")
                     .style('fill', function (d) {
-                        return color((d.children ? d : d.parent).name)
+                        var node= d.children ? d : d.parent;
+                        return colors[node.name]=colors[node.name]||color(node.name);
                     })
                     .on("mouseover", onFocus);
+                var sideBar=d3.select(element.find('.side-bar')[0]).append("svg:svg")
+                    .attr({
+                        height:h,
+                        width:w
+                    })
+                    .style('overflow','auto');
+                var legend = sideBar.append("svg:g")
+                    .selectAll('rect')
+                    .data(d3.entries(colors));
+                legend.enter().append('rect')
+                    .attr('width',100)
+                    .attr('height',50)
+                    .attr('cx',5)
+                    .attr('cy',5)
+                    .style('fill',function(d){
+                        return d.value;
+                    })
+                    .attr('transform',function(d,i){
+                        return "translate(0,"+i*52+")";
+                    });
+                legend=sideBar.append("svg:g")
+                    .selectAll('text')
+                    .data(d3.entries(colors));
+                legend.enter().append("svg:text")
+                   .attr({
+                       'x': 26,
+                       'y':25,
+                       'text-anchor':'middle'
+                   })
+                   .text(function(d){
+                       return d.key;
+                   })
+                   .attr('transform',function(d,i){
+                       console.log("key", d.key,i)
+                       return "translate(15,"+i*52+")";
+                   });
                 d3.select(element.find('#container')[0]).on("mouseleave",onBlur);
                 var totalLength = path.node().__data__.value;
                 initializeBreadCrumb();
                 function onFocus(d) {
-                    console.log((d.value / totalLength * 100).toPrecision(3) + " %");
+                    var percentageText=(d.value / totalLength * 100).toPrecision(3) + " %";
+                    d3.select(element.find('.percentage')[0]).text(percentageText);
+                    d3.select(element.find(".trail")[0])
+                        .style("visibility", "");
                     var selectedNodes = getAncestors(d);
-                    updateBreadCrumb(selectedNodes)
+                    updateBreadCrumb(selectedNodes,percentageText)
+                    console.log("path is", svg.selectAll('path'));
                     svg.selectAll('path')
                         .style('opacity',0.3);
                     svg.selectAll('path')
@@ -98,11 +145,11 @@ var app = angular.module('viz', [])
                         path.unshift(current);
                         current = current.parent;
                     }
+                   // path.unshift(current);
                     return path;
                 }
 
-                function updateBreadCrumb(nodeArray) {
-                    debugger;
+                function updateBreadCrumb(nodeArray,percentageText) {
                     var g = d3.select(element.find('.trail')[0])
                         .selectAll('g')
                         .data(nodeArray, function (d) {

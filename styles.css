@@ -1,0 +1,15 @@
+.container .side-bar{
+    display: inline-block;
+    width: 200px;
+    margin-left: 100px;
+}
+.container .chart{
+    display: inline-block;
+    float: left;
+}
+.container .percentage{
+    position: absolute;
+    margin-left: 293px;
+    margin-top: 252px;
+    font-size: 45px;
+}
