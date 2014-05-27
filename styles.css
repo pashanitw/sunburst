@@ -15,6 +15,19 @@ body {
     overflow-y: auto;
     font-family: 'Open Sans';
     font-weight: 600;
+    position: relative;
+}
+.side-bar div
+{
+    position: absolute;
+    left: 0;
+    top: 19px;
+    z-index: -2;
+}
+.side-bar div input{
+    visibility: hidden;
+    height: 10px;
+    margin-bottom: 7px;
 }
 .container .chart{
     display: inline-block;

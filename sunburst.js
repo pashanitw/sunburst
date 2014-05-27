@@ -1,6 +1,6 @@
-var app = angular.module('viz', [])
+var app = angular.module('viz', ['colorpicker.module'])
     .directive('sunBurst',
-    function () {
+    function ($compile) {
         return {
             restrict: 'E',
             replace: true,
@@ -17,131 +17,186 @@ var app = angular.module('viz', [])
                 "</div>" +
                 "</div>",
             link: function ($scope, element, attrs, controller) {
-                $scope.explanation="some text percentages"
+                $scope.explanation = "some text percentages";
                 var w = 700,
                     h = 700,
                     r = 350,
                     color = d3.scale.category20c();
+                var path;
                 var b = {
                     w: 75, h: 30, s: 3, t: 10
                 };
-                var leg={
-                    height:25,
-                    width:50,
-                    padding:5
+                var leg = {
+                        height: 25,
+                        width: 50,
+                        padding: 5
                     },
-                    maxLength = 0,
-                    colors = {};
-                var partition = d3.layout.partition()
-                    .size([2 * Math.PI, r * r])
-                    .value(function (d) {
-                        return d.size;
-                    });
-                var svg = d3.select(element.find('.chart')[0])
-                    .append('svg:svg')
-                    .attr('height', h)
-                    .attr('width', w)
-                    .append("svg:g")
-                    .attr('id', 'container')
-                    .attr('transform', 'translate(' + w / 2 + ',' + h / 2 + ')');
-                var nodes = partition.nodes(sampleData);
-                var arc = d3.svg.arc()
-                    .startAngle(function (d) {
-                        return d.x;
-                    })
-                    .endAngle(function (d) {
-                        return d.x + d.dx;
-                    })
-                    .innerRadius(function (d) {
-                        return Math.sqrt(d.y);
-                    })
-                    .outerRadius(function (d) {
-                        return Math.sqrt(d.y + d.dy);
-                    });
-                var path = svg.data([sampleData]).selectAll('path')
-                    .data(nodes)
-                    .enter()
-                    .append('svg:path')
-                    .attr('display', function (d) {
-                        return d.depth ? null : 'none';
-                    })
-                    .attr('d', arc)
-                    .attr("fill-rule", "evenodd")
-                    .style("stroke", "#fff")
-                    .style('fill', function (d) {
-                        var node= d.children ? d : d.parent;
-                        maxLength=Math.max(maxLength,node.name.length)
-                        return colors[node.name]=colors[node.name]||color(node.name);
-                    })
-                    .on("mouseover", onFocus);
-                var leg={
-                    height:15,
-                    width:15,
-                    padding:23,
-                    radius:4
+                    maxLength = 0;
+                $scope.colors = {};
+                var totalLength, svg;
+                var leg = {
+                    height: 15,
+                    width: 15,
+                    padding: 23,
+                    radius: 4
+                };
+                var renderSequence = function () {
+
+                        var partition = d3.layout.partition()
+                            .size([2 * Math.PI, r * r])
+                            .value(function (d) {
+                                return d.size;
+                            });
+                        svg = d3.select(element.find('.chart')[0])
+                            .append('svg:svg')
+                            .attr('height', h)
+                            .attr('width', w)
+                            .append("svg:g")
+                            .attr('id', 'container')
+                            .attr('transform', 'translate(' + w / 2 + ',' + h / 2 + ')');
+                        var nodes = partition.nodes(sampleData);
+                        var arc = d3.svg.arc()
+                            .startAngle(function (d) {
+                                return d.x;
+                            })
+                            .endAngle(function (d) {
+                                return d.x + d.dx;
+                            })
+                            .innerRadius(function (d) {
+                                return Math.sqrt(d.y);
+                            })
+                            .outerRadius(function (d) {
+                                return Math.sqrt(d.y + d.dy);
+                            });
+                          path = svg.data([sampleData]).selectAll('path')
+                            .data(nodes)
+                            .enter()
+                            .append('svg:path')
+                            .attr('display', function (d) {
+                                return d.depth ? null : 'none';
+                            })
+                            .attr('d', arc)
+                            .attr("fill-rule", "evenodd")
+                            .style("stroke", "#fff")
+                            .style('fill', function (d) {
+                                var node = d.children ? d : d.parent;
+                                maxLength = Math.max(maxLength, node.name.length)
+                                return $scope.colors[node.name] = $scope.colors[node.name] || color(node.name);
+                            })
+                            .on("mouseover", onFocus);
+                        createLegend();
+                        d3.select(element.find('#container')[0]).on("mouseleave", onBlur);
+                         totalLength = path.node().__data__.value;
+                        initializeBreadCrumb();
+                    },
+                    renderMagnify = function () {
+
+                    },
+                    renderLabel = function () {
+
+                    };
+                renderSequence();
+                function createLegend() {
+                    var entries = d3.entries($scope.colors);
+                    var legendHeight = entries.length * (leg.padding);
+                    var sideBar = d3.select(element.find('.side-bar')[0]).append("svg:svg")
+                        .attr('height', legendHeight);
+                    var legend = sideBar.append("svg:g")
+                        .selectAll('rect')
+                        .data(d3.entries($scope.colors));
+                    legend.enter().append('rect')
+                        .attr('width', leg.height)
+                        .attr('height', leg.width)
+                        .attr('rx', leg.radius)
+                        .attr('ry', leg.radius)
+                        .style('fill', function (d) {
+                            return d.value;
+                        })
+                        .on('click',onLegendClick)
+                        .attr('transform', function (d, i) {
+                            return "translate(0," + i * leg.padding + ")";
+                        });
+                    var div = d3.select(element.find('.side-bar')[0])
+                        .append('div')
+                        .attr('height',legendHeight)
+                        .selectAll('input')
+                        .data(d3.entries($scope.colors))
+                        .enter()
+                        .append('input')
+                        .attr('colorpicker', function () {
+                            return "hex";
+                        }).attr("type","text")
+                        .attr("ng-model",function(d,i){
+                            console.log("name", d.name,$scope.colors);
+                            return "colors."+ d.key;
+                        })
+                        .attr("ng-change",function(d,i){
+                            return "changeColor('"+ d.key+"',"+i+")";
+                        });
+                    var dviz=element.find('.side-bar div')
+                    console.log("div is ",dviz.contents());
+                      $compile(dviz.contents())($scope)
+                    legend = sideBar.append("svg:g")
+                        .selectAll('text')
+                        .data(d3.entries($scope.colors));
+                    legend.enter().append("svg:text")
+                        .attr({
+                            'x': 10,
+                            'y': 12
+                        })
+                        .text(function (d) {
+                            return d.key;
+                        })
+                        .attr('transform', function (d, i) {
+                            console.log("key", d.key, i)
+                            return "translate(15," + i * leg.padding + ")";
+                        })
+                        .style('fill', function (d) {
+                            return d.value;
+                        });
+
                 }
-                var entries=d3.entries(colors);
-                debugger;
-                var legendHeight=entries.length*(leg.padding);
-                var sideBar=d3.select(element.find('.side-bar')[0]).append("svg:svg")
-                    .attr('height',legendHeight);
-                var legend = sideBar.append("svg:g")
-                    .selectAll('rect')
-                    .data(d3.entries(colors));
-                legend.enter().append('rect')
-                    .attr('width',leg.height)
-                    .attr('height',leg.width)
-                    .attr('rx',leg.radius)
-                    .attr('ry',leg.radius)
-                    .style('fill',function(d){
-                        return d.value;
-                    })
-                    .attr('transform',function(d,i){
-                        return "translate(0,"+i*leg.padding+")";
+
+                $scope.changeColor=function(key,i){
+                    console.log("change color",key);
+                   path.style('fill', function (d,i) {
+                       console.log("this is i");
+                           console.log("things", d.name,key,$scope.colors[key]);
+                           if(d.children){
+                               return $scope.colors[d.name];
+                           }else{
+                               return $scope.colors[ d.parent.name];
+                           }
+
                     });
-                legend=sideBar.append("svg:g")
-                    .selectAll('text')
-                    .data(d3.entries(colors));
-                legend.enter().append("svg:text")
-                   .attr({
-                       'x': 10,
-                       'y':12
-                   })
-                   .text(function(d){
-                       return d.key;
-                   })
-                   .attr('transform',function(d,i){
-                       console.log("key", d.key,i)
-                       return "translate(15,"+i*leg.padding+")";
-                   })
-                    .style('fill',function(d){
-                        return d.value;
-                    });
-                d3.select(element.find('#container')[0]).on("mouseleave",onBlur);
-                var totalLength = path.node().__data__.value;
-                initializeBreadCrumb();
+                }
+                function onLegendClick(d,i){
+                    element.find('.side-bar div input')[i].click();
+                    console.log("legend clicked");
+                }
                 function onFocus(d) {
-                    var percentageText=(d.value / totalLength * 100).toPrecision(3) + " %";
+                    var percentageText = (d.value / totalLength * 100).toPrecision(3) + " %";
                     d3.select(element.find('.percentage')[0]).text(percentageText);
                     d3.select(element.find(".trail")[0])
                         .style("visibility", "");
                     var selectedNodes = getAncestors(d);
-                    updateBreadCrumb(selectedNodes,percentageText)
+                    updateBreadCrumb(selectedNodes, percentageText)
                     svg.selectAll('path')
-                        .style('opacity',0.3);
+                        .style('opacity', 0.3);
                     svg.selectAll('path')
-                        .filter(function(node){
-                            return selectedNodes.indexOf(node)>-1;
+                        .filter(function (node) {
+                            return selectedNodes.indexOf(node) > -1;
                         })
-                        .style("opacity",1);
+                        .style("opacity", 1);
                 }
-                function onBlur(d){
-                   console.log("on leave breadcrumb");
+
+                function onBlur(d) {
+                    console.log("on leave breadcrumb");
                     // Hide the breadcrumb trail
                     d3.select(element.find(".trail")[0])
                         .style("visibility", "hidden");
                     svg.selectAll('path')
-                        .on("mouseover",null);
+                        .on("mouseover", null);
                     svg.selectAll('path')
                         .transition()
                         .duration(1000)
@@ -158,12 +213,12 @@ var app = angular.module('viz', [])
                         path.unshift(current);
                         current = current.parent;
                     }
-                   // path.unshift(current);
+                    // path.unshift(current);
                     return path;
                 }
 
-                function updateBreadCrumb(nodeArray,percentageText) {
-                    b.w=maxLength*12;
+                function updateBreadCrumb(nodeArray, percentageText) {
+                    b.w = maxLength * 12;
                     var g = d3.select(element.find('.trail')[0])
                         .selectAll('g')
                         .data(nodeArray, function (d) {
@@ -423,7 +478,7 @@ var sampleData = {
             "name": "util",
             "children": [
                 {"name": "Arrays", "size": 8258},
-                {"name": "Colors", "size": 10001},
+                {"name": "colors", "size": 10001},
                 {"name": "Dates", "size": 8217},
                 {"name": "Displays", "size": 12555},
                 {"name": "Filter", "size": 2324},
